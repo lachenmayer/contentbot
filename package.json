@@ -1,0 +1,7 @@
+{
+  "name": "contentbot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Harry Lachenmayer <harrylachenmayer@gmail.com>",
+  "license": "MIT"
+}
