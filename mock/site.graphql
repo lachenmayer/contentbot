@@ -1,0 +1,10 @@
+type About {
+  bio: String
+}
+
+type Film {
+  role: String
+  pitch: String
+  description: String
+  youtubeUrl: String
+}

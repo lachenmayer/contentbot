@@ -1,0 +1,7 @@
+type: About
+----
+title: About me
+----
+bio:
+
+This is just a test. Repeat, **this is just a test**.

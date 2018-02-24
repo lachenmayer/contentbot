@@ -3,5 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "author": "Harry Lachenmayer <harrylachenmayer@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "ava"
+  },
+  "dependencies": {
+    "ava": "^0.25.0",
+    "graphql": "^0.13.1",
+    "hypha": "https://github.com/jondashkyle/hypha",
+    "lodash.mapvalues": "^4.6.0",
+    "pify": "^3.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.18.0"
+  }
 }

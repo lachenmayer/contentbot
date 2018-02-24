@@ -89,7 +89,10 @@ eg. using `graphql-yoga`:
 const Contentbot = require('contentbot')
 const GraphQLServer = require('graphql-yoga')
 
-const schema = Contentbot('content')
-const server = new GraphQLServer({ schema })
-server.start()
+async function main() {
+  const schema = await Contentbot('content')
+  const server = new GraphQLServer({ schema })
+  server.start()
+}
+main()
 ```
