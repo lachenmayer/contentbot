@@ -8,18 +8,14 @@ GraphQL schema & API for creating/reading/updating/deleting pages in a static we
 
 ### 1. Define your schema
 
-Define a file `site.graphql` containing the types of pages that your site should support:
+Define a file `site.graphql` containing the types of pages that your site should support, and the custom fields that should be included on each page:
 
-```
-type About implements Page {
-  url: String!
-  title: String!
+```graphql
+type About {
   bio: String
 }
 
-type Film implements Page {
-  url: String!
-  title: String!
+type Film  {
   role: String
   pitch: String
   description: String
@@ -27,14 +23,11 @@ type Film implements Page {
 }
 ```
 
-If the type implements the interface `Page`, it will become a page, and will need non-nullable `url` and `title` fields.
-You can add other helper types that are not `Page`s.
+(You will not be able to add any arguments to the fields.)
 
-You will not be able to add any arguments to the fields.
+Contentbot will generate the following GraphQL schema:
 
-Contentbot generates the following GraphQL schema:
-
-```
+```graphql
 type About implements Page {
   url: String!
   title: String
@@ -102,9 +95,22 @@ eg. using `graphql-yoga`:
 const Contentbot = require('contentbot')
 const GraphQLServer = require('graphql-yoga')
 
+const schema = `
+type About {
+  bio: String
+}
+
+type Film  {
+  role: String
+  pitch: String
+  description: String
+  youtubeUrl: String
+}
+`
+
 async function main() {
-  const schema = await Contentbot('content')
-  const server = new GraphQLServer({ schema })
+  const contentbot = await Contentbot('content', { schema })
+  const server = new GraphQLServer({ schema: contentbot })
   server.start()
 }
 main()
