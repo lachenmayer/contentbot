@@ -1,5 +1,7 @@
 # Contentbot
 
+**Under construction, use at your own risk. This repo does not respect semver (yet) - things may break at any time.**
+
 GraphQL schema & API for creating/reading/updating/deleting pages in a static website which stores pages in a simple format on the file system, similarly to [Kirby](https://getkirby.com/docs/content/adding-content).
 
 ## Usage
@@ -33,42 +35,20 @@ You will not be able to add any arguments to the fields.
 Contentbot generates the following GraphQL schema:
 
 ```
-schema {
-  query: Query
-  mutation: Mutation
-}
-
-type Query {
-  pages: [Page!]!
-  allAbouts: [About!]!
-  allFilms: [Film!]!
-}
-
-type Mutation {
-  createAbout(url: String!, input: AboutInput): About
-  readAbout(url: String!): About
-  updateAbout(url: String!, input: AboutInput): About
-  deleteAbout(url: String!): About
-
-  createFilm(url: String!, input: FilmInput): Film
-  readFilm(url: String!): Film
-  updateFilm(url: String!, input: FilmInput): Film
-  deleteFilm(url: String!): Film
-}
-
-type Page {
+type About implements Page {
   url: String!
-  title: String!
-}
-
-input type AboutInput {
-  url: String
   title: String
   bio: String
 }
 
-input type FilmInput {
-  url: String
+input AboutInput {
+  url: String!
+  title: String
+  bio: String
+}
+
+type Film implements Page {
+  url: String!
   title: String
   role: String
   pitch: String
@@ -76,7 +56,40 @@ input type FilmInput {
   youtubeUrl: String
 }
 
-# + user-generated types
+input FilmInput {
+  url: String!
+  title: String
+  role: String
+  pitch: String
+  description: String
+  youtubeUrl: String
+}
+
+type GenericPage implements Page {
+  url: String!
+  title: String
+}
+
+type Mutation {
+  writeAbout(content: AboutInput): About
+  writeFilm(content: FilmInput): Film
+}
+
+interface Page {
+  url: String!
+  title: String
+}
+
+type Query {
+  """
+  This field does not do anything. It is required because there is currently no other way to add a type to the schema.
+  """
+  _ignore: GenericPage
+  page(url: String!): Page
+  pages: [Page]
+  allAbouts: [About]
+  allFilms: [Film]
+}
 ```
 
 For every type in `site.graphql`, it will create a set of CRUD mutations, and a corresponding input type.
@@ -96,3 +109,49 @@ async function main() {
 }
 main()
 ```
+
+### 3. Start querying it from your frontend!
+
+For example, to add a new film page:
+
+```graphql
+mutation {
+  writeFilm(content: {url: "/film/national-youth-orchestra", title: "Meet the National Youth Orchestra of Great Britain", youtubeUrl: "https://www.youtube.com/watch?v=uv2Y4AoWA-w"}) {
+    url
+  }
+}
+```
+
+You can then get the film page like this:
+
+```graphql
+query {
+  page(url: "/film/national-youth-orchestra") {
+    url
+    title
+    ... on Film {
+      youtubeUrl
+    }
+  }
+}
+```
+
+Notice that the query uses an [inline fragment](http://graphql.org/learn/queries/#inline-fragments), which is required to get the type-specific custom fields. You can also define multiple inline fragments, so you could reuse the same query for different page types, for example:
+
+```graphql
+query AnyPage($url: String!) {
+  page(url: $url) {
+    __typename
+    url
+    title
+    ... on Film {
+      youtubeUrl
+    }
+    ... on About {
+      bio
+    }
+  }
+}
+```
+
+You could then check the `__typename` field, and render different templates for different types of pages.
