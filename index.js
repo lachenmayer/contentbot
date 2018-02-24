@@ -1,5 +1,6 @@
 const assert = require('assert')
 const {
+  GraphQLInputObjectType,
   GraphQLInterfaceType,
   GraphQLList,
   GraphQLNonNull,
@@ -7,11 +8,13 @@ const {
   GraphQLString,
   GraphQLSchema,
   buildSchema,
-  printSchema,
 } = require('graphql')
 const hypha = require('hypha')
 const mapValues = require('lodash.mapvalues')
+const mkdirp = require('mkdirp')
+const path = require('path')
 const pify = require('pify')
+const smarkt = require('smarkt')
 
 module.exports = async function Contentbot(options = {}) {
   assert(typeof options === 'object', 'options need to be an object')
@@ -24,28 +27,37 @@ module.exports = async function Contentbot(options = {}) {
 
   assert(typeof options.contentPath === 'string', 'content path is required')
 
-  const fs = isFs(options.fs) ? options.fs : require('fs')
+  const _fs = isFs(options.fs) ? options.fs : require('fs')
+  const fs = pify(_fs)
+  const mkdir = pify((dir, cb) => mkdirp(dir, { fs: _fs }, cb))
 
-  let schemaSource = options.schema
-  if (options.path != null) {
-    const readFile = pify(fs.readFile)
-    schemaSource = await readFile(options.schemaPath, { encoding: 'utf8' })
+  //
+  // Content
+  //
+
+  const contentRoot = options.contentPath
+
+  async function readSite() {
+    return await hypha.readSite(contentRoot, {
+      fs,
+      parent: contentRoot,
+    })
   }
 
-  const schema = buildSchema(schemaSource)
-  const typeMap = schema.getTypeMap()
+  let site = await readSite()
 
-  let pageTypes = {}
-  let pageQueryFields = {}
+  //
+  // Generic types
+  //
 
-  const requiredPageFields = {
+  const genericPageFields = {
     url: { type: new GraphQLNonNull(GraphQLString) },
-    title: { type: new GraphQLNonNull(GraphQLString) },
+    title: { type: GraphQLString },
   }
 
   const Page = new GraphQLInterfaceType({
     name: 'Page',
-    fields: () => requiredPageFields,
+    fields: () => genericPageFields,
     resolveType(page) {
       if (page.type == null) {
         return GenericPage
@@ -66,8 +78,24 @@ module.exports = async function Contentbot(options = {}) {
   const GenericPage = new GraphQLObjectType({
     name: 'GenericPage',
     interfaces: () => [Page],
-    fields: () => requiredPageFields,
+    fields: () => genericPageFields,
   })
+
+  //
+  // User-defined schema
+  //
+
+  let schemaSource = options.schema
+  if (options.path != null) {
+    schemaSource = await fs.readFile(options.schemaPath, { encoding: 'utf8' })
+  }
+
+  const schema = buildSchema(schemaSource)
+  const typeMap = schema.getTypeMap()
+
+  let pageTypes = {}
+  let pageQueryFields = {}
+  let pageMutationFields = {}
 
   for (let [name, type] of Object.entries(typeMap)) {
     if (
@@ -86,25 +114,51 @@ module.exports = async function Contentbot(options = {}) {
     const pageType = new GraphQLObjectType({
       name,
       interfaces: () => [Page],
-      fields: () => ({ ...requiredPageFields, ...pageFields }),
+      fields: () => ({ ...genericPageFields, ...pageFields }),
     })
-
     pageTypes[name] = pageType
+
+    const inputType = new GraphQLInputObjectType({
+      name: name + 'Input',
+      fields: () => ({ ...genericPageFields, ...pageFields }),
+    })
 
     pageQueryFields[`all${name}s`] = {
       type: new GraphQLList(pageType),
       resolve() {
-        return Object.values(content).filter(page => page.type === name)
+        return Object.values(site).filter(page => page.type === name)
+      },
+    }
+
+    pageMutationFields[`write${name}`] = {
+      type: pageType,
+      args: {
+        content: { type: inputType },
+      },
+      async resolve(_, { content }) {
+        const url = path.normalize(content.url) // no /../../../ hax
+        const pageContent = {
+          type: name,
+          ...content,
+        }
+        delete pageContent.url
+        const pageDir = path.join(contentRoot, url)
+        await mkdir(pageDir)
+        const pageFile = path.join(pageDir, 'index.txt')
+        await fs.writeFile(pageFile, smarkt.stringify(pageContent), {
+          encoding: 'utf8',
+        })
+        site = await readSite()
+        return content
       },
     }
   }
 
-  const content = await hypha.readSite(options.contentPath, {
-    fs,
-    parent: options.contentPath,
-  })
+  //
+  // Generated schema
+  //
 
-  const generatedSchema = new GraphQLSchema({
+  return new GraphQLSchema({
     query: new GraphQLObjectType({
       name: 'Query',
       fields: () => ({
@@ -113,18 +167,27 @@ module.exports = async function Contentbot(options = {}) {
           description:
             'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
         },
+        page: {
+          type: Page,
+          args: { url: { type: new GraphQLNonNull(GraphQLString) } },
+          resolve(_, { url }) {
+            return site[url]
+          },
+        },
         pages: {
-          type: new GraphQLList(GenericPage),
+          type: new GraphQLList(Page),
           resolve() {
-            return Object.values(content)
+            return Object.values(site)
           },
         },
         ...pageQueryFields,
       }),
     }),
+    mutation: new GraphQLObjectType({
+      name: 'Mutation',
+      fields: () => pageMutationFields,
+    }),
   })
-
-  return generatedSchema
 }
 
 function isFs(fs) {

@@ -2923,7 +2923,7 @@ slide@^1.1.5:
   version "1.1.6"
   resolved "https://registry.yarnpkg.com/slide/-/slide-1.1.6.tgz#56eb027d65b4d2dce6cb2e2d32c4d4afc9e1d707"
 
-smarkt@0.0.5:
+smarkt@0.0.5, smarkt@^0.0.5:
   version "0.0.5"
   resolved "https://registry.yarnpkg.com/smarkt/-/smarkt-0.0.5.tgz#2f03afe2adaccaa7735c1a2314efc0fa8560dec2"
   dependencies:
@@ -3165,6 +3165,17 @@ tar@^2.2.1:
     block-stream "*"
     fstream "^1.0.2"
     inherits "2"
+
+temp-dir@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/temp-dir/-/temp-dir-1.0.0.tgz#0a7c0ea26d3a39afa7e0ebea9c1fc0bc4daa011d"
+
+tempy@^0.2.1:
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/tempy/-/tempy-0.2.1.tgz#9038e4dbd1c201b74472214179bc2c6f7776e54c"
+  dependencies:
+    temp-dir "^1.0.0"
+    unique-string "^1.0.0"
 
 term-size@^1.2.0:
   version "1.2.0"

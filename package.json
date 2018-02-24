@@ -12,9 +12,12 @@
     "graphql": "^0.13.1",
     "hypha": "https://github.com/jondashkyle/hypha",
     "lodash.mapvalues": "^4.6.0",
-    "pify": "^3.0.0"
+    "mkdirp": "^0.5.1",
+    "pify": "^3.0.0",
+    "smarkt": "^0.0.5"
   },
   "devDependencies": {
-    "eslint": "^4.18.0"
+    "eslint": "^4.18.0",
+    "tempy": "^0.2.1"
   }
 }
