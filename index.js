@@ -106,9 +106,14 @@ module.exports = async function Contentbot(options = {}) {
       continue
     }
 
-    const pageFields = mapValues(type._fields, field => ({
+    const pageFields = mapValues(type._fields, (field, name) => ({
       type: field.type,
       description: field.description,
+      resolve(page) {
+        // FIXME smarkt lowercases the keys for some reason.
+        // This is a bug in my opinion, we should be able to remove this resolver.
+        return page[name.toLowerCase()]
+      },
     }))
 
     const pageType = new GraphQLObjectType({
@@ -118,9 +123,15 @@ module.exports = async function Contentbot(options = {}) {
     })
     pageTypes[name] = pageType
 
+    // We need to remove the resolve function from the page fields to use them in an input type.
+    // We should be able to remove this if we can delete the custom resolver (see FIXME)
+    const pageInputFields = mapValues(pageFields, ({ type, description }) => ({
+      type,
+      description,
+    }))
     const inputType = new GraphQLInputObjectType({
       name: name + 'Input',
-      fields: () => ({ ...genericPageFields, ...pageFields }),
+      fields: () => ({ ...genericPageFields, ...pageInputFields }),
     })
 
     pageQueryFields[`all${name}s`] = {
@@ -149,7 +160,7 @@ module.exports = async function Contentbot(options = {}) {
           encoding: 'utf8',
         })
         site = await readSite()
-        return content
+        return site[url]
       },
     }
   }
