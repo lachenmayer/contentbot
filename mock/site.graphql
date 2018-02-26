@@ -4,7 +4,13 @@ type About {
 
 type Film {
   role: String
-  pitch: String
-  description: String
-  youtubeUrl: String
+
+  "Short pitch (< 200 characters)"
+  pitch: String @field(type: "long-text")
+
+  "Long description"
+  description: String @field(type: "long-text")
+
+  "YouTube URL"
+  youtubeUrl: String @field(type: "url")
 }

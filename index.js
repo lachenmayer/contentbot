@@ -16,7 +16,7 @@ const path = require('path')
 const pify = require('pify')
 const smarkt = require('smarkt')
 
-module.exports = async function Contentbot(options = {}) {
+async function Contentbot(options = {}) {
   assert(typeof options === 'object', 'options need to be an object')
 
   assert(
@@ -86,11 +86,17 @@ module.exports = async function Contentbot(options = {}) {
   //
 
   let schemaSource = options.schema
-  if (options.path != null) {
+  if (options.schemaPath != null) {
     schemaSource = await fs.readFile(options.schemaPath, { encoding: 'utf8' })
   }
 
-  const schema = buildSchema(schemaSource)
+  const directiveDefinitions = [
+    'directive @field(type: String) on FIELD_DEFINITION',
+  ]
+
+  const directiveSource = directiveDefinitions.join('\n') + '\n'
+
+  const schema = buildSchema(directiveSource + schemaSource)
   const typeMap = schema.getTypeMap()
 
   let pageTypes = {}
@@ -106,7 +112,7 @@ module.exports = async function Contentbot(options = {}) {
       continue
     }
 
-    const pageFields = mapValues(type._fields, (field, name) => ({
+    const pageFields = mapValues(type.getFields(), (field, name) => ({
       type: field.type,
       description: field.description,
       resolve(page) {
@@ -165,6 +171,15 @@ module.exports = async function Contentbot(options = {}) {
     }
   }
 
+  const Field = new GraphQLObjectType({
+    name: 'Field',
+    fields: () => ({
+      name: { type: new GraphQLNonNull(GraphQLString) },
+      type: { type: GraphQLString },
+      description: { type: GraphQLString },
+    }),
+  })
+
   //
   // Generated schema
   //
@@ -177,6 +192,25 @@ module.exports = async function Contentbot(options = {}) {
           type: GenericPage,
           description:
             'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
+        },
+        fields: {
+          type: new GraphQLList(Field),
+          args: { type: { type: new GraphQLNonNull(GraphQLString) } },
+          resolve(_, { type }) {
+            const pageType = typeMap[type]
+            const fields = pageType.getFields()
+            let result = []
+            for (let [name, field] of Object.entries(fields)) {
+              const description = field.description
+              const fieldDirective = getDirective(field, 'field')
+              const type =
+                fieldDirective != null
+                  ? fieldDirective.arguments.type
+                  : defaultFieldType(field)
+              result.push({ name, type, description })
+            }
+            return result
+          },
         },
         page: {
           type: Page,
@@ -210,3 +244,33 @@ function isFs(fs) {
     typeof fs.readFile === 'function'
   )
 }
+
+function getDirective(field, name) {
+  const directive = field.astNode.directives.find(
+    directive => directive.name.value === name
+  )
+  if (directive == null) {
+    return null
+  }
+  const args = {}
+  for (let argument of directive.arguments) {
+    args[argument.name.value] =
+      argument.value != null ? argument.value.value : null
+  }
+  return {
+    name,
+    arguments: args,
+  }
+}
+
+function defaultFieldType(field) {
+  switch (field.type.name) {
+    case 'String':
+      return 'text'
+    default:
+      console.error('unhandled field type', field.type, '- defaulting to text')
+      return 'text'
+  }
+}
+
+module.exports = Contentbot

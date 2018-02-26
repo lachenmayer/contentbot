@@ -1,21 +1,11 @@
 const test = require('ava')
+const fs = require('fs')
 const { graphql, GraphQLSchema, printSchema } = require('graphql')
 const tempy = require('tempy')
 
 const Contentbot = require('.')
 
-const schema = `
-type About {
-  bio: String
-}
-
-type Film {
-  role: String
-  pitch: String
-  description: String
-  youtubeUrl: String
-}
-`
+const schema = fs.readFileSync('mock/site.graphql', 'utf8')
 
 test('constructor generates a GraphQL schema', async t => {
   const c = await Contentbot({ schema, contentPath: 'mock/content' })
@@ -132,4 +122,35 @@ test('writeFilm writes a film page', async t => {
     description: null,
     youtubeUrl: 'test',
   })
+})
+
+test('fields resolves with all fields', async t => {
+  const c = await Contentbot({ schema, contentPath: 'mock/content' })
+  const query = await graphql(
+    c,
+    `
+      query {
+        fields(type: "Film") {
+          name
+          type
+          description
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data.fields, [
+    { name: 'role', type: 'text', description: null },
+    {
+      name: 'pitch',
+      type: 'long-text',
+      description: 'Short pitch (< 200 characters)',
+    },
+    {
+      name: 'description',
+      type: 'long-text',
+      description: 'Long description',
+    },
+    { name: 'youtubeUrl', type: 'url', description: 'YouTube URL' },
+  ])
 })
