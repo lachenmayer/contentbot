@@ -8,16 +8,19 @@
     "test": "ava"
   },
   "dependencies": {
-    "ava": "^0.25.0",
     "graphql": "^0.13.1",
     "hypha": "https://github.com/jondashkyle/hypha",
     "lodash.mapvalues": "^4.6.0",
     "mkdirp": "^0.5.1",
     "pify": "^3.0.0",
-    "smarkt": "^0.0.5"
+    "smarkt": "https://github.com/lachenmayer/smarkt#keep-key-case"
   },
   "devDependencies": {
+    "ava": "^0.25.0",
     "eslint": "^4.18.0",
     "tempy": "^0.2.1"
+  },
+  "resolutions": {
+    "smarkt": "https://github.com/lachenmayer/smarkt#keep-key-case"
   }
 }
