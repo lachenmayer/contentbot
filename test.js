@@ -31,10 +31,7 @@ test('pages field resolves with all pages', async t => {
     `
   )
   t.falsy(response.errors)
-  t.deepEqual(response.data.pages, [
-    { __typename: 'About', url: '/about' },
-    { __typename: 'GenericPage', url: '/' }, // because Home is not defined in schema.
-  ])
+  t.snapshot(response.data.pages)
 })
 
 test('allAbouts resolves with all About pages', async t => {
@@ -152,5 +149,26 @@ test('fields resolves with all fields', async t => {
       description: 'Long description',
     },
     { name: 'youtubeUrl', type: 'url', description: 'YouTube URL' },
+  ])
+})
+
+test('pages are sorted by order - last if unspecified', async t => {
+  const c = await Contentbot({ schema, contentPath: 'mock/content' })
+  const query = await graphql(
+    c,
+    `
+      query {
+        allFilms {
+          title
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data.allFilms, [
+    { title: 'One' },
+    { title: 'Two' },
+    { title: 'Three' },
+    { title: 'Four' },
   ])
 })

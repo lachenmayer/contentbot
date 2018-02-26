@@ -1,6 +1,7 @@
 const assert = require('assert')
 const {
   GraphQLInputObjectType,
+  GraphQLInt,
   GraphQLInterfaceType,
   GraphQLList,
   GraphQLNonNull,
@@ -53,6 +54,11 @@ async function Contentbot(options = {}) {
   const genericPageFields = {
     url: { type: new GraphQLNonNull(GraphQLString) },
     title: { type: GraphQLString },
+    order: {
+      type: GraphQLInt,
+      description:
+        'Specifies the sort order of the page. Pages are sorted in ascending order.',
+    },
   }
 
   const Page = new GraphQLInterfaceType({
@@ -143,7 +149,14 @@ async function Contentbot(options = {}) {
     pageQueryFields[`all${name}s`] = {
       type: new GraphQLList(pageType),
       resolve() {
-        return Object.values(site).filter(page => page.type === name)
+        const pages = Object.values(site).filter(page => page.type === name)
+        pages.sort((a, b) => {
+          if (a.order == null && b.order == null) return 0
+          if (a.order == null) return 1
+          if (b.order == null) return -1
+          return a.order - b.order
+        })
+        return pages
       },
     }
 
