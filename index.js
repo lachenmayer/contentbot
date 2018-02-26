@@ -123,16 +123,18 @@ async function Contentbot(options = {}) {
       description: field.description,
     }))
 
+    const fields = () => Object.assign({}, genericPageFields, pageFields)
+
     const pageType = new GraphQLObjectType({
       name,
       interfaces: () => [Page],
-      fields: () => ({ ...genericPageFields, ...pageFields }),
+      fields,
     })
     pageTypes[name] = pageType
 
     const inputType = new GraphQLInputObjectType({
       name: name + 'Input',
-      fields: () => ({ ...genericPageFields, ...pageFields }),
+      fields,
     })
 
     pageQueryFields[`all${name}s`] = {
@@ -156,10 +158,7 @@ async function Contentbot(options = {}) {
       },
       async resolve(_, { content }) {
         const url = path.normalize(content.url) // no /../../../ hax
-        const pageContent = {
-          type: name,
-          ...content,
-        }
+        const pageContent = Object.assign({}, { type: name }, content)
         delete pageContent.url
         const pageDir = path.join(contentRoot, url)
         await mkdir(pageDir)
@@ -189,46 +188,50 @@ async function Contentbot(options = {}) {
   return new GraphQLSchema({
     query: new GraphQLObjectType({
       name: 'Query',
-      fields: () => ({
-        _ignore: {
-          type: GenericPage,
-          description:
-            'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
-        },
-        fields: {
-          type: new GraphQLList(Field),
-          args: { type: { type: new GraphQLNonNull(GraphQLString) } },
-          resolve(_, { type }) {
-            const pageType = typeMap[type]
-            const fields = pageType.getFields()
-            let result = []
-            for (let [name, field] of Object.entries(fields)) {
-              const description = field.description
-              const fieldDirective = getDirective(field, 'field')
-              const type =
-                fieldDirective != null
-                  ? fieldDirective.arguments.type
-                  : defaultFieldType(field)
-              result.push({ name, type, description })
-            }
-            return result
+      fields: () =>
+        Object.assign(
+          {},
+          {
+            _ignore: {
+              type: GenericPage,
+              description:
+                'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
+            },
+            fields: {
+              type: new GraphQLList(Field),
+              args: { type: { type: new GraphQLNonNull(GraphQLString) } },
+              resolve(_, { type }) {
+                const pageType = typeMap[type]
+                const fields = pageType.getFields()
+                let result = []
+                for (let [name, field] of Object.entries(fields)) {
+                  const description = field.description
+                  const fieldDirective = getDirective(field, 'field')
+                  const type =
+                    fieldDirective != null
+                      ? fieldDirective.arguments.type
+                      : defaultFieldType(field)
+                  result.push({ name, type, description })
+                }
+                return result
+              },
+            },
+            page: {
+              type: Page,
+              args: { url: { type: new GraphQLNonNull(GraphQLString) } },
+              resolve(_, { url }) {
+                return site[url]
+              },
+            },
+            pages: {
+              type: new GraphQLList(Page),
+              resolve() {
+                return Object.values(site)
+              },
+            },
           },
-        },
-        page: {
-          type: Page,
-          args: { url: { type: new GraphQLNonNull(GraphQLString) } },
-          resolve(_, { url }) {
-            return site[url]
-          },
-        },
-        pages: {
-          type: new GraphQLList(Page),
-          resolve() {
-            return Object.values(site)
-          },
-        },
-        ...pageQueryFields,
-      }),
+          pageQueryFields
+        ),
     }),
     mutation: new GraphQLObjectType({
       name: 'Mutation',
