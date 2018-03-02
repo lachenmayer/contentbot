@@ -204,6 +204,13 @@ async function Contentbot(options = {}) {
                 const pageType = typeMap[type]
                 const fields = pageType.getFields()
                 let result = []
+                // TODO find a way to dynamically get these rather than manually adding them.
+                result.push({ name: 'url', type: 'url', description: 'Link' })
+                result.push({
+                  name: 'title',
+                  type: 'text',
+                  description: 'Title',
+                })
                 for (let [name, field] of Object.entries(fields)) {
                   const description = field.description
                   const fieldDirective = getDirective(field, 'field')
@@ -251,7 +258,11 @@ function isFs(fs) {
 }
 
 function getDirective(field, name) {
-  const directive = field.astNode.directives.find(
+  const ast = field.astNode
+  if (ast == null) {
+    return null
+  }
+  const directive = ast.directives.find(
     directive => directive.name.value === name
   )
   if (directive == null) {

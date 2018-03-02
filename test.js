@@ -137,6 +137,8 @@ test('fields resolves with all fields', async t => {
   )
   t.falsy(query.errors)
   t.deepEqual(query.data.fields, [
+    { name: 'url', type: 'url', description: 'Link' },
+    { name: 'title', type: 'text', description: 'Title' },
     { name: 'role', type: 'text', description: null },
     {
       name: 'pitch',
