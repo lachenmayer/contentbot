@@ -71,6 +71,8 @@ test('writeFilm writes a film page', async t => {
             url: "/films/national-youth-orchestra"
             title: "National Youth Orchestra"
             role: "DoP"
+            pitch: null
+            description: null
             youtubeUrl: "test"
           }
         ) {
@@ -89,8 +91,8 @@ test('writeFilm writes a film page', async t => {
     url: '/films/national-youth-orchestra',
     title: 'National Youth Orchestra',
     role: 'DoP',
-    pitch: null,
-    description: null,
+    pitch: '',
+    description: '',
     youtubeUrl: 'test',
   })
   const query = await graphql(
@@ -115,8 +117,8 @@ test('writeFilm writes a film page', async t => {
     url: '/films/national-youth-orchestra',
     title: 'National Youth Orchestra',
     role: 'DoP',
-    pitch: null,
-    description: null,
+    pitch: '',
+    description: '',
     youtubeUrl: 'test',
   })
 })
