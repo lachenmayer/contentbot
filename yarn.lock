@@ -2930,9 +2930,9 @@ smarkt@0.0.5, "smarkt@https://github.com/lachenmayer/smarkt#keep-key-case":
     object-keys "^1.0.11"
     xtend "^4.0.1"
 
-"smarkt@https://github.com/lachenmayer/smarkt#empties":
+"smarkt@https://github.com/jondashkyle/smarkt":
   version "0.0.5"
-  resolved "https://github.com/lachenmayer/smarkt#57a43467bd080db63c40ad85cedc81f2ac6ea650"
+  resolved "https://github.com/jondashkyle/smarkt#c4aff7ea229be74f2b98c7a8a2b6daa9af168208"
   dependencies:
     js-yaml "^3.10.0"
     object-keys "^1.0.11"

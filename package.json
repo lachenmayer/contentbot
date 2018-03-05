@@ -13,7 +13,7 @@
     "lodash.mapvalues": "^4.6.0",
     "mkdirp": "^0.5.1",
     "pify": "^3.0.0",
-    "smarkt": "https://github.com/lachenmayer/smarkt#empties"
+    "smarkt": "https://github.com/jondashkyle/smarkt"
   },
   "devDependencies": {
     "ava": "^0.25.0",
