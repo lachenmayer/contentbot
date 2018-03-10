@@ -176,3 +176,126 @@ test('pages are sorted by order - last if unspecified', async t => {
     { title: 'Four' },
   ])
 })
+
+test('rename page - happy case', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const setup = await graphql(
+    c,
+    `
+      mutation {
+        writeFilm(
+          content: {
+            url: "/national-youth-orchestra"
+            title: "National Youth Orchestra"
+          }
+        ) {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(setup.errors)
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        rename(from: "/national-youth-orchestra", to: "/some weird url") {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(mutation.errors)
+  t.deepEqual(mutation.data.rename, {
+    url: '/some weird url',
+    title: 'National Youth Orchestra',
+  })
+  // Check that no other random pages have appeared
+  const query = await graphql(
+    c,
+    `
+      query {
+        pages {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data, {
+    pages: [
+      { url: '/', title: null },
+      { url: '/some weird url', title: 'National Youth Orchestra' },
+    ],
+  })
+})
+
+test('rename page - deep nesting', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const setup = await graphql(
+    c,
+    `
+      mutation {
+        writeFilm(
+          content: {
+            url: "/deep/nested/films/national-youth-orchestra"
+            title: "National Youth Orchestra"
+          }
+        ) {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(setup.errors)
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        rename(
+          from: "/deep/nested/films/national-youth-orchestra"
+          to: "/super/deep/nested/stuff"
+        ) {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(mutation.errors)
+  t.deepEqual(mutation.data.rename, {
+    url: '/super/deep/nested/stuff',
+    title: 'National Youth Orchestra',
+  })
+  // Check that old nested pages aren't left over
+  const query = await graphql(
+    c,
+    `
+      query {
+        pages {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  console.log(query.data)
+  t.deepEqual(query.data, {
+    pages: [
+      { url: '/', title: null },
+      { url: '/super', title: null },
+      { url: '/super/deep', title: null },
+      { url: '/super/deep/nested', title: null },
+      { url: '/super/deep/nested/stuff', title: 'National Youth Orchestra' },
+    ],
+  })
+})

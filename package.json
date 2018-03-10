@@ -12,6 +12,7 @@
     "hypha": "https://github.com/jondashkyle/hypha",
     "lodash.mapvalues": "^4.6.0",
     "mkdirp": "^0.5.1",
+    "move-concurrently": "^1.0.1",
     "pify": "^3.0.0",
     "smarkt": "https://github.com/jondashkyle/smarkt"
   },

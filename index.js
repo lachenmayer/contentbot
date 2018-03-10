@@ -12,6 +12,7 @@ const {
 } = require('graphql')
 const hypha = require('hypha')
 const mapValues = require('lodash.mapvalues')
+const move = require('move-concurrently')
 const mkdirp = require('mkdirp')
 const path = require('path')
 const pify = require('pify')
@@ -36,12 +37,12 @@ async function Contentbot(options = {}) {
   // Content
   //
 
-  const contentRoot = options.contentPath
+  const contentPath = options.contentPath
 
   async function readSite() {
-    return await hypha.readSite(contentRoot, {
+    return await hypha.readSite(contentPath, {
       fs,
-      parent: contentRoot,
+      parent: contentPath,
     })
   }
 
@@ -157,17 +158,16 @@ async function Contentbot(options = {}) {
         content: { type: inputType },
       },
       async resolve(_, { content }) {
-        const url = path.normalize(content.url) // no /../../../ hax
         const pageContent = Object.assign({}, { type: name }, content)
         delete pageContent.url
-        const pageDir = path.join(contentRoot, url)
+        const pageDir = urlToPath(contentPath, content.url)
         await mkdir(pageDir)
         const pageFile = path.join(pageDir, 'index.txt')
         await fs.writeFile(pageFile, smarkt.stringify(pageContent), {
           encoding: 'utf8',
         })
         site = await readSite()
-        return site[url]
+        return site[content.url]
       },
     }
   }
@@ -189,60 +189,89 @@ async function Contentbot(options = {}) {
     query: new GraphQLObjectType({
       name: 'Query',
       fields: () =>
-        Object.assign(
-          {},
-          {
-            _ignore: {
-              type: GenericPage,
-              description:
-                'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
-            },
-            fields: {
-              type: new GraphQLList(Field),
-              args: { type: { type: new GraphQLNonNull(GraphQLString) } },
-              resolve(_, { type }) {
-                const pageType = typeMap[type]
-                const fields = pageType.getFields()
-                let result = []
-                // TODO find a way to dynamically get these rather than manually adding them.
-                result.push({ name: 'url', type: 'url', description: 'Link' })
-                result.push({
-                  name: 'title',
-                  type: 'text',
-                  description: 'Title',
-                })
-                for (let [name, field] of Object.entries(fields)) {
-                  const description = field.description
-                  const fieldDirective = getDirective(field, 'field')
-                  const type =
-                    fieldDirective != null
-                      ? fieldDirective.arguments.type
-                      : defaultFieldType(field)
-                  result.push({ name, type, description })
-                }
-                return result
-              },
-            },
-            page: {
-              type: Page,
-              args: { url: { type: new GraphQLNonNull(GraphQLString) } },
-              resolve(_, { url }) {
-                return site[url]
-              },
-            },
-            pages: {
-              type: new GraphQLList(Page),
-              resolve() {
-                return Object.values(site)
-              },
+        Object.assign({}, pageQueryFields, {
+          fields: {
+            type: new GraphQLList(Field),
+            args: { type: { type: new GraphQLNonNull(GraphQLString) } },
+            resolve(_, { type }) {
+              const pageType = typeMap[type]
+              const fields = pageType.getFields()
+              let result = []
+              // TODO find a way to dynamically get these rather than manually adding them.
+              result.push({ name: 'url', type: 'url', description: 'Link' })
+              result.push({
+                name: 'title',
+                type: 'text',
+                description: 'Title',
+              })
+              for (let [name, field] of Object.entries(fields)) {
+                const description = field.description
+                const fieldDirective = getDirective(field, 'field')
+                const type =
+                  fieldDirective != null
+                    ? fieldDirective.arguments.type
+                    : defaultFieldType(field)
+                result.push({ name, type, description })
+              }
+              return result
             },
           },
-          pageQueryFields
-        ),
+          page: {
+            type: Page,
+            args: { url: { type: new GraphQLNonNull(GraphQLString) } },
+            resolve(_, { url }) {
+              return site[url]
+            },
+          },
+          pages: {
+            type: new GraphQLList(Page),
+            resolve() {
+              return Object.values(site)
+            },
+          },
+
+          _ignore: {
+            type: GenericPage,
+            description:
+              'This field does not do anything. It is required because there is currently no other way to add a type to the schema.',
+          },
+        }),
     }),
     mutation: new GraphQLObjectType({
       name: 'Mutation',
-      fields: () => pageMutationFields,
+      fields: () =>
+        Object.assign({}, pageMutationFields, {
+          rename: {
+            type: Page,
+            args: {
+              from: { type: new GraphQLNonNull(GraphQLString) },
+              to: { type: new GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_, args) {
+              const from = urlToPath(contentPath, args.from)
+              const to = urlToPath(contentPath, args.to)
+              await mkdir(to)
+              await move(from, to, { fs })
+              // If the moved path was nested, we have to delete the leftover
+              // path segments if they are empty, otherwise we get spurious pages.
+              const relativeFrom = from.replace(contentPath, '')
+              let directories = relativeFrom
+                .split(path.sep)
+                .filter(s => s !== '')
+              while (directories.length > 1) {
+                directories = directories.slice(0, directories.length - 1)
+                const toDelete = path.join(contentPath, ...directories)
+                const files = await fs.readdir(toDelete)
+                const isEmpty = files.length === 0
+                if (isEmpty) {
+                  await fs.rmdir(toDelete)
+                }
+              }
+              site = await readSite()
+              return site[args.to]
+            },
+          },
+        }),
     }),
   })
 }
@@ -287,6 +316,12 @@ function defaultFieldType(field) {
       console.error('unhandled field type', field.type, '- defaulting to text')
       return 'text'
   }
+}
+
+// Ensures that hax0rs can't write to random parts of the fs by removing /../../../
+function urlToPath(contentPath, url) {
+  const relativeUrl = path.normalize(url)
+  return path.join(contentPath, relativeUrl)
 }
 
 module.exports = Contentbot
