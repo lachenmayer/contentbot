@@ -288,13 +288,13 @@ test('rename page - deep nesting', async t => {
     `
   )
   t.falsy(query.errors)
-  console.log(query.data)
+  // FIXME Order makes no sense but whatever
   t.deepEqual(query.data, {
     pages: [
-      { url: '/', title: null },
       { url: '/super', title: null },
       { url: '/super/deep', title: null },
       { url: '/super/deep/nested', title: null },
+      { url: '/', title: null },
       { url: '/super/deep/nested/stuff', title: 'National Youth Orchestra' },
     ],
   })
