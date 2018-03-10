@@ -12,7 +12,7 @@ const {
 } = require('graphql')
 const hypha = require('hypha')
 const mapValues = require('lodash.mapvalues')
-const move = require('move-concurrently')
+const moveConcurrently = require('move-concurrently')
 const mkdirp = require('mkdirp')
 const path = require('path')
 const pify = require('pify')
@@ -32,6 +32,7 @@ async function Contentbot(options = {}) {
   const _fs = isFs(options.fs) ? options.fs : require('fs')
   const fs = pify(_fs)
   const mkdir = pify((dir, cb) => mkdirp(dir, { fs: _fs }, cb))
+  const move = (from, to) => moveConcurrently(from, to, { fs })
 
   //
   // Content
@@ -250,8 +251,15 @@ async function Contentbot(options = {}) {
             async resolve(_, args) {
               const from = urlToPath(contentPath, args.from)
               const to = urlToPath(contentPath, args.to)
-              await mkdir(to)
-              await move(from, to, { fs })
+              try {
+                await fs.stat(from)
+                await mkdir(to)
+                await move(from, to)
+              } catch (e) {
+                if (e.code === 'ENOENT' /* No such file or directory */) {
+                  throw new Error(`Page does not exist: ${args.from}`)
+                }
+              }
               // If the moved path was nested, we have to delete the leftover
               // path segments if they are empty, otherwise we get spurious pages.
               const relativeFrom = from.replace(contentPath, '')
