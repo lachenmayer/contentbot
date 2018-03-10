@@ -9,19 +9,16 @@
   },
   "dependencies": {
     "graphql": "^0.13.1",
-    "hypha": "https://github.com/jondashkyle/hypha",
+    "hypha": "^0.4.2",
     "lodash.mapvalues": "^4.6.0",
     "mkdirp": "^0.5.1",
     "move-concurrently": "^1.0.1",
     "pify": "^3.0.0",
-    "smarkt": "https://github.com/jondashkyle/smarkt"
+    "smarkt": "^0.0.6"
   },
   "devDependencies": {
     "ava": "^0.25.0",
     "eslint": "^4.18.0",
     "tempy": "^0.2.1"
-  },
-  "resolutions": {
-    "smarkt": "https://github.com/lachenmayer/smarkt#keep-key-case"
   }
 }
