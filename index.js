@@ -17,6 +17,7 @@ const mkdirp = require('mkdirp')
 const path = require('path')
 const pify = require('pify')
 const smarkt = require('smarkt')
+const without = require('@lachenmayer/object-without')
 
 async function Contentbot(options = {}) {
   assert(typeof options === 'object', 'options need to be an object')
@@ -32,7 +33,16 @@ async function Contentbot(options = {}) {
   const _fs = isFs(options.fs) ? options.fs : require('fs')
   const fs = pify(_fs)
   const mkdir = pify((dir, cb) => mkdirp(dir, { fs: _fs }, cb))
-  const move = (from, to) => moveConcurrently(from, to, { fs })
+  const move = (from, to) => moveConcurrently(from, to, { fs: _fs })
+  const exists = async path => {
+    try {
+      await fs.stat(path)
+      return true
+    } catch (e) {
+      if (e.code === 'ENOENT') return false
+      throw e
+    }
+  }
 
   //
   // Content
@@ -136,7 +146,7 @@ async function Contentbot(options = {}) {
 
     const inputType = new GraphQLInputObjectType({
       name: name + 'Input',
-      fields,
+      fields: without(fields(), 'url'),
     })
 
     pageQueryFields[`all${name}s`] = {
@@ -153,25 +163,57 @@ async function Contentbot(options = {}) {
       },
     }
 
-    pageMutationFields[`write${name}`] = {
+    pageMutationFields[`create${name}`] = {
       type: pageType,
       args: {
+        url: { type: new GraphQLNonNull(GraphQLString) },
         content: { type: inputType },
       },
-      async resolve(_, { content }) {
+      async resolve(_, { url, content }) {
+        url = cleanUrl(url)
         const pageContent = Object.assign({}, { type: name }, content)
-        delete pageContent.url
-        const url = cleanUrl(content.url)
         const pageDir = urlToPath(contentPath, url)
-        await mkdir(pageDir)
         const pageFile = path.join(pageDir, 'index.txt')
+        if (await exists(pageFile)) {
+          throw new Error('Page already exists')
+        }
+        await mkdir(pageDir)
         await fs.writeFile(pageFile, smarkt.stringify(pageContent), {
           encoding: 'utf8',
         })
         site = await readSite()
         const page = site[url]
         if (page == null) {
-          console.log('newly created page was not found')
+          console.log('page was not found')
+          console.log('url:', url)
+          console.log('input url:', content.url)
+          console.log('site:', site)
+        }
+        return page
+      },
+    }
+
+    pageMutationFields[`edit${name}`] = {
+      type: pageType,
+      args: {
+        url: { type: new GraphQLNonNull(GraphQLString) },
+        content: { type: inputType },
+      },
+      async resolve(_, { url, content }) {
+        url = cleanUrl(url)
+        const pageContent = Object.assign({}, { type: name }, content)
+        const pageDir = urlToPath(contentPath, url)
+        const pageFile = path.join(pageDir, 'index.txt')
+        if (!await exists(pageFile)) {
+          throw new Error('Page does not exist.')
+        }
+        await fs.writeFile(pageFile, smarkt.stringify(pageContent), {
+          encoding: 'utf8',
+        })
+        site = await readSite()
+        const page = site[url]
+        if (page == null) {
+          console.log('page was not found')
           console.log('url:', url)
           console.log('input url:', content.url)
           console.log('site:', site)
@@ -259,14 +301,11 @@ async function Contentbot(options = {}) {
             async resolve(_, args) {
               const from = urlToPath(contentPath, args.from)
               const to = urlToPath(contentPath, args.to)
-              try {
-                await fs.stat(from)
+              if (await exists(from)) {
                 await mkdir(to)
                 await move(from, to)
-              } catch (e) {
-                if (e.code === 'ENOENT' /* No such file or directory */) {
-                  throw new Error(`Page does not exist: ${args.from}`)
-                }
+              } else {
+                throw new Error(`Page does not exist: ${args.from}`)
               }
               // If the moved path was nested, we have to delete the leftover
               // path segments if they are empty, otherwise we get spurious pages.

@@ -28,61 +28,7 @@ type Film  {
 Contentbot will generate the following GraphQL schema:
 
 ```graphql
-type About implements Page {
-  url: String!
-  title: String
-  bio: String
-}
-
-input AboutInput {
-  url: String!
-  title: String
-  bio: String
-}
-
-type Film implements Page {
-  url: String!
-  title: String
-  role: String
-  pitch: String
-  description: String
-  youtubeUrl: String
-}
-
-input FilmInput {
-  url: String!
-  title: String
-  role: String
-  pitch: String
-  description: String
-  youtubeUrl: String
-}
-
-type GenericPage implements Page {
-  url: String!
-  title: String
-}
-
-type Mutation {
-  writeAbout(content: AboutInput): About
-  writeFilm(content: FilmInput): Film
-}
-
-interface Page {
-  url: String!
-  title: String
-}
-
-type Query {
-  """
-  This field does not do anything. It is required because there is currently no other way to add a type to the schema.
-  """
-  _ignore: GenericPage
-  page(url: String!): Page
-  pages: [Page]
-  allAbouts: [About]
-  allFilms: [Film]
-}
+# TODO
 ```
 
 For every type in `site.graphql`, it will create a set of CRUD mutations, and a corresponding input type.

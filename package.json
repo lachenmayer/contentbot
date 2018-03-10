@@ -8,6 +8,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@lachenmayer/object-without": "^1.0.0",
     "graphql": "^0.13.1",
     "hypha": "^0.4.2",
     "lodash.mapvalues": "^4.6.0",

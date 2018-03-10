@@ -58,7 +58,7 @@ test('allAbouts resolves with all About pages', async t => {
   ])
 })
 
-test('writeFilm writes a film page', async t => {
+test('createFilm creates a film page', async t => {
   const contentPath = tempy.directory()
   console.log(contentPath)
   const c = await Contentbot({ schema, contentPath })
@@ -66,9 +66,9 @@ test('writeFilm writes a film page', async t => {
     c,
     `
       mutation {
-        writeFilm(
+        createFilm(
+          url: "/films/national-youth-orchestra"
           content: {
-            url: "/films/national-youth-orchestra"
             title: "National Youth Orchestra"
             role: "DoP"
             pitch: null
@@ -87,7 +87,7 @@ test('writeFilm writes a film page', async t => {
     `
   )
   t.falsy(mutation.errors)
-  t.deepEqual(mutation.data.writeFilm, {
+  t.deepEqual(mutation.data.createFilm, {
     url: '/films/national-youth-orchestra',
     title: 'National Youth Orchestra',
     role: 'DoP',
@@ -123,7 +123,7 @@ test('writeFilm writes a film page', async t => {
   })
 })
 
-test('write & query works with wobbly input', async t => {
+test('create & query works with wobbly input', async t => {
   const contentPath = tempy.directory()
   console.log(contentPath)
   const c = await Contentbot({ schema, contentPath })
@@ -131,11 +131,9 @@ test('write & query works with wobbly input', async t => {
     c,
     `
       mutation {
-        writeFilm(
-          content: {
-            url: "   films/national-youth-orchestra  "
-            title: "National Youth Orchestra"
-          }
+        createFilm(
+          url: "   films/national-youth-orchestra  "
+          content: { title: "National Youth Orchestra" }
         ) {
           url
           title
@@ -144,7 +142,7 @@ test('write & query works with wobbly input', async t => {
     `
   )
   t.falsy(mutation.errors)
-  t.deepEqual(mutation.data.writeFilm, {
+  t.deepEqual(mutation.data.createFilm, {
     url: '/films/national-youth-orchestra',
     title: 'National Youth Orchestra',
   })
@@ -166,7 +164,7 @@ test('write & query works with wobbly input', async t => {
   })
 })
 
-test('write - empty url throws error', async t => {
+test('create - empty url throws error', async t => {
   const contentPath = tempy.directory()
   console.log(contentPath)
   const c = await Contentbot({ schema, contentPath })
@@ -174,7 +172,7 @@ test('write - empty url throws error', async t => {
     c,
     `
       mutation {
-        writeFilm(content: { url: "" }) {
+        createFilm(url: "") {
           url
         }
       }
@@ -183,6 +181,85 @@ test('write - empty url throws error', async t => {
   t.is(mutation.errors.length, 1)
   const error = mutation.errors[0]
   t.is(error.message, 'url must not be empty')
+})
+
+test('edit - throws if not created', async t => {
+  const c = await Contentbot({ schema, contentPath: 'mock/content' })
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        editFilm(url: "/some-url", content: { title: "yee boi" }) {
+          url
+        }
+      }
+    `
+  )
+  t.is(mutation.errors.length, 1)
+  const error = mutation.errors[0]
+  t.is(error.message, 'Page does not exist.')
+})
+
+test('edit edits', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const create = await graphql(
+    c,
+    `
+      mutation {
+        createFilm(url: "/foo-bar") {
+          url
+        }
+      }
+    `
+  )
+  t.falsy(create.errors)
+  const edit = await graphql(
+    c,
+    `
+      mutation {
+        editFilm(
+          url: "/foo-bar"
+          content: { title: "yep", role: "sounds good" }
+        ) {
+          url
+          title
+          role
+          description
+        }
+      }
+    `
+  )
+  t.falsy(edit.errors)
+  t.deepEqual(edit.data.editFilm, {
+    url: '/foo-bar',
+    title: 'yep',
+    role: 'sounds good',
+    description: null,
+  })
+  const query = await graphql(
+    c,
+    `
+      query {
+        page(url: "/foo-bar") {
+          url
+          title
+          ... on Film {
+            role
+            description
+          }
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data.page, {
+    url: '/foo-bar',
+    title: 'yep',
+    role: 'sounds good',
+    description: null,
+  })
 })
 
 test('fields resolves with all fields', async t => {
@@ -247,11 +324,9 @@ test('rename page - happy case', async t => {
     c,
     `
       mutation {
-        writeFilm(
-          content: {
-            url: "/national-youth-orchestra"
-            title: "National Youth Orchestra"
-          }
+        createFilm(
+          url: "/national-youth-orchestra"
+          content: { title: "National Youth Orchestra" }
         ) {
           url
           title
@@ -305,11 +380,9 @@ test('rename page - deep nesting', async t => {
     c,
     `
       mutation {
-        writeFilm(
-          content: {
-            url: "/deep/nested/films/national-youth-orchestra"
-            title: "National Youth Orchestra"
-          }
+        createFilm(
+          url: "/deep/nested/films/national-youth-orchestra"
+          content: { title: "National Youth Orchestra" }
         ) {
           url
           title
