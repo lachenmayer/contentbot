@@ -16,6 +16,7 @@ const moveConcurrently = require('move-concurrently')
 const mkdirp = require('mkdirp')
 const path = require('path')
 const pify = require('pify')
+const rimraf = require('rimraf')
 const smarkt = require('smarkt')
 const without = require('@lachenmayer/object-without')
 
@@ -33,6 +34,8 @@ async function Contentbot(options = {}) {
   const _fs = isFs(options.fs) ? options.fs : require('fs')
   const fs = pify(_fs)
   const mkdir = pify((dir, cb) => mkdirp(dir, { fs: _fs }, cb))
+  const _rimraf = pify(rimraf)
+  const remove = path => _rimraf(path, Object.assign({ glob: false }, _fs))
   const move = (from, to) => moveConcurrently(from, to, { fs: _fs })
   const exists = async path => {
     try {
@@ -324,6 +327,23 @@ async function Contentbot(options = {}) {
               }
               site = await readSite()
               return site[args.to]
+            },
+          },
+          delete: {
+            type: Page,
+            args: {
+              url: { type: new GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_, { url }) {
+              url = cleanUrl(url)
+              const pageDir = urlToPath(contentPath, url)
+              if (!await exists(pageDir)) {
+                throw new Error('Page does not exist.')
+              }
+              await remove(pageDir)
+              const deletedPage = site[url]
+              site = await readSite()
+              return deletedPage
             },
           },
         }),

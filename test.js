@@ -262,6 +262,67 @@ test('edit edits', async t => {
   })
 })
 
+test('delete - throws if not created', async t => {
+  const c = await Contentbot({ schema, contentPath: 'mock/content' })
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        delete(url: "/some-url") {
+          url
+        }
+      }
+    `
+  )
+  t.is(mutation.errors.length, 1)
+  const error = mutation.errors[0]
+  t.is(error.message, 'Page does not exist.')
+})
+
+test('delete deletes', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const create = await graphql(
+    c,
+    `
+      mutation {
+        createFilm(url: "/foo-bar") {
+          url
+        }
+      }
+    `
+  )
+  t.falsy(create.errors)
+  const deleteMutation = await graphql(
+    c,
+    `
+      mutation {
+        delete(url: "/foo-bar") {
+          url
+        }
+      }
+    `
+  )
+  t.falsy(deleteMutation.errors)
+  t.deepEqual(deleteMutation.data.delete, {
+    url: '/foo-bar',
+  })
+  const query = await graphql(
+    c,
+    `
+      query {
+        page(url: "/foo-bar") {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data.page, null)
+})
+
 test('fields resolves with all fields', async t => {
   const c = await Contentbot({ schema, contentPath: 'mock/content' })
   const query = await graphql(
