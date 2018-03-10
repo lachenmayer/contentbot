@@ -161,14 +161,22 @@ async function Contentbot(options = {}) {
       async resolve(_, { content }) {
         const pageContent = Object.assign({}, { type: name }, content)
         delete pageContent.url
-        const pageDir = urlToPath(contentPath, content.url)
+        const url = cleanUrl(content.url)
+        const pageDir = urlToPath(contentPath, url)
         await mkdir(pageDir)
         const pageFile = path.join(pageDir, 'index.txt')
         await fs.writeFile(pageFile, smarkt.stringify(pageContent), {
           encoding: 'utf8',
         })
         site = await readSite()
-        return site[content.url]
+        const page = site[url]
+        if (page == null) {
+          console.log('newly created page was not found')
+          console.log('url:', url)
+          console.log('input url:', content.url)
+          console.log('site:', site)
+        }
+        return page
       },
     }
   }
@@ -221,7 +229,7 @@ async function Contentbot(options = {}) {
             type: Page,
             args: { url: { type: new GraphQLNonNull(GraphQLString) } },
             resolve(_, { url }) {
-              return site[url]
+              return site[cleanUrl(url)]
             },
           },
           pages: {
@@ -330,6 +338,15 @@ function defaultFieldType(field) {
 function urlToPath(contentPath, url) {
   const relativeUrl = path.normalize(url)
   return path.join(contentPath, relativeUrl)
+}
+
+function cleanUrl(input) {
+  let url = input.trim()
+  if (url.length < 1) {
+    throw new Error('url must not be empty')
+  }
+  url = url[0] === '/' ? url : '/' + url
+  return url
 }
 
 module.exports = Contentbot

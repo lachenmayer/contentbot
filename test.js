@@ -123,6 +123,68 @@ test('writeFilm writes a film page', async t => {
   })
 })
 
+test('write & query works with wobbly input', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        writeFilm(
+          content: {
+            url: "   films/national-youth-orchestra  "
+            title: "National Youth Orchestra"
+          }
+        ) {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(mutation.errors)
+  t.deepEqual(mutation.data.writeFilm, {
+    url: '/films/national-youth-orchestra',
+    title: 'National Youth Orchestra',
+  })
+  const query = await graphql(
+    c,
+    `
+      query {
+        page(url: "       films/national-youth-orchestra ") {
+          url
+          title
+        }
+      }
+    `
+  )
+  t.falsy(query.errors)
+  t.deepEqual(query.data.page, {
+    url: '/films/national-youth-orchestra',
+    title: 'National Youth Orchestra',
+  })
+})
+
+test('write - empty url throws error', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        writeFilm(content: { url: "" }) {
+          url
+        }
+      }
+    `
+  )
+  t.is(mutation.errors.length, 1)
+  const error = mutation.errors[0]
+  t.is(error.message, 'url must not be empty')
+})
+
 test('fields resolves with all fields', async t => {
   const c = await Contentbot({ schema, contentPath: 'mock/content' })
   const query = await graphql(
