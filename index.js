@@ -200,7 +200,7 @@ async function Contentbot(options = {}) {
       type: pageType,
       args: {
         url: { type: new GraphQLNonNull(GraphQLString) },
-        content: { type: inputType },
+        content: { type: new GraphQLNonNull(inputType) },
       },
       async resolve(_, { url, content }) {
         url = cleanUrl(url)
