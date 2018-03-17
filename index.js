@@ -204,7 +204,8 @@ async function Contentbot(options = {}) {
       },
       async resolve(_, { url, content }) {
         url = cleanUrl(url)
-        const pageContent = Object.assign({}, { type: name }, content)
+        const page = site[url]
+        const pageContent = Object.assign({}, page, { type: name }, content)
         const pageDir = urlToPath(contentPath, url)
         const pageFile = path.join(pageDir, 'index.txt')
         if (!await exists(pageFile)) {
@@ -214,14 +215,14 @@ async function Contentbot(options = {}) {
           encoding: 'utf8',
         })
         site = await readSite()
-        const page = site[url]
-        if (page == null) {
+        const newPage = site[url]
+        if (newPage == null) {
           console.log('page was not found')
           console.log('url:', url)
           console.log('input url:', content.url)
           console.log('site:', site)
         }
-        return page
+        return newPage
       },
     }
   }

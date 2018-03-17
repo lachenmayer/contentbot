@@ -238,6 +238,29 @@ test('edit edits', async t => {
     role: 'sounds good',
     description: null,
   })
+  const edit2 = await graphql(
+    c,
+    `
+      mutation {
+        editFilm(
+          url: "/foo-bar"
+          content: { title: "nope", description: "woi" }
+        ) {
+          url
+          title
+          role
+          description
+        }
+      }
+    `
+  )
+  t.falsy(edit2.errors)
+  t.deepEqual(edit2.data.editFilm, {
+    url: '/foo-bar',
+    title: 'nope',
+    role: 'sounds good',
+    description: 'woi',
+  })
   const query = await graphql(
     c,
     `
@@ -256,9 +279,9 @@ test('edit edits', async t => {
   t.falsy(query.errors)
   t.deepEqual(query.data.page, {
     url: '/foo-bar',
-    title: 'yep',
+    title: 'nope',
     role: 'sounds good',
-    description: null,
+    description: 'woi',
   })
 })
 
@@ -512,4 +535,35 @@ test('rename page - from does not exist', async t => {
   t.is(mutation.errors.length, 1)
   const error = mutation.errors[0]
   t.is(error.message, 'Page does not exist: /some-weirdo-path-doesnt-exist')
+})
+
+test('rename into subdirectory', async t => {
+  const contentPath = tempy.directory()
+  console.log(contentPath)
+  const c = await Contentbot({ schema, contentPath })
+  const setup = await graphql(
+    c,
+    `
+      mutation {
+        createFilm(url: "/foo-bar") {
+          url
+        }
+      }
+    `
+  )
+  t.falsy(setup.errors)
+  const mutation = await graphql(
+    c,
+    `
+      mutation {
+        rename(from: "/foo-bar", to: "/foo-bar/baz") {
+          url
+        }
+      }
+    `
+  )
+  t.falsy(mutation.errors)
+  t.deepEqual(mutation.data.rename, {
+    url: '/foo-bar/baz',
+  })
 })
